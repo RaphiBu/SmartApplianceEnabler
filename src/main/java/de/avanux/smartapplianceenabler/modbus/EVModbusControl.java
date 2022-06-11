@@ -192,13 +192,13 @@ public class EVModbusControl extends ModbusSlave implements EVChargerControl {
     @Override
     public void setChargeCurrent(int current) {
         logger.debug("{}: Set charge current {}A", getApplianceId(), current);
-        ParentWithChild<ModbusWrite, ModbusWriteValue> write = ModbusWrite.getFirstRegisterWrite(
+        if(this.requestCache != null) {
+            // the next poll after write should return a fresh response from charger
+            this.requestCache.clear();
+        }
+        var writes = ModbusWrite.getRegisterWrites(
                 EVWriteValueName.ChargingCurrent.name(), this.modbusWrites);
-        if(write != null) {
-            if(this.requestCache != null) {
-                // the next poll after write should return a fresh response from charger
-                this.requestCache.clear();
-            }
+        writes.forEach(write -> {
             ModbusWrite registerWrite = write.parent();
             try {
                 ModbusWriteTransactionExecutor executor = ModbusExecutorFactory.getWriteExecutor(getApplianceId(),
@@ -215,7 +215,7 @@ public class EVModbusControl extends ModbusSlave implements EVChargerControl {
                     this.notificationHandler.sendNotification(NotificationType.COMMUNICATION_ERROR);
                 }
             }
-        }
+        });
     }
 
     @Override
